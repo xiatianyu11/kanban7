@@ -1,0 +1,25 @@
+# Secrets and credentials
+.env*
+*.pem
+*.key
+*.pfx
+id_rsa*
+
+# Local Claude Code settings (commands/ is shared on purpose)
+.claude/settings.local.json
+
+# Playwright MCP output (snapshots, console logs, temp screenshots)
+.playwright-mcp/
+
+# Logs, OS and editor junk
+*.log
+Thumbs.db
+.DS_Store
+.vscode/
+
+# Python bytecode (from installed skills)
+__pycache__/
+*.pyc
+
+# Security scan reports (contain vulnerability details; never publish)
+Security_Report_*.docx

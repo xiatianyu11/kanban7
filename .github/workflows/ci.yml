@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  constraints:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check single-file rules from CLAUDE.md
+        shell: bash
+        run: |
+          f=index.html
+          fail=0
+          check() { echo "::error file=$f::$1"; fail=1; }
+
+          [ "$(grep -c '<style' "$f")" -eq 1 ]  || check "Expected exactly one <style> block"
+          [ "$(grep -c '<script' "$f")" -eq 1 ] || check "Expected exactly one <script> block"
+          grep -n '!important' "$f" && check "!important is not allowed"
+          grep -nE 'localStorage|sessionStorage|indexedDB|document\.cookie' "$f" && check "Browser storage / cookies are not allowed"
+          grep -nE '\b(alert|confirm)\(' "$f" && check "Native dialogs (alert/confirm) are not allowed"
+          # External resources: any http(s) src= or href=, except plain <a href> links.
+          grep -nE '(src|href)=["'"'"']https?://' "$f" | grep -vE '<a [^>]*href=' && check "External src/href resources are not allowed"
+          grep -nE '@import|url\(["'"'"']?https?://' "$f" && check "External CSS imports are not allowed"
+          # The only network endpoint allowed is FormSubmit.
+          grep -noE 'https?://[^"'"'"' )]+' "$f" | grep -v 'formsubmit.co/ajax/' && check "Unexpected external URL (only FormSubmit is allowed)"
+
+          exit $fail
+
+  html-validate:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npx --yes html-validate index.html
